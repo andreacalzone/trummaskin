@@ -26,8 +26,11 @@ import type { InstrumentId, Pattern } from '@/types/pattern';
  *     step — no timer/grid change, so the tempo stays perfectly locked; only
  *     which pattern's data the next step reads from changes.
  *   - AUTO advance: decided inside tick() itself, only at a step-16→1 wrap,
- *     by reading autoRef. onPatternChange (also ref-held) is fired purely so
- *     the UI can follow along — it is never read back by tick() itself.
+ *     by reading autoRef. Skips empty patterns entirely (findNextAutoPatternIndex)
+ *     — with only patterns 1 and 2 filled in, AUTO cycles 1→2→1→2…, never
+ *     marching into an empty 3 onward. onPatternChange (also ref-held) is
+ *     fired purely so the UI can follow along — it is never read back by
+ *     tick() itself.
  *   - Song Mode advance (Milestone 26): same wrap-boundary decision point as
  *     AUTO, and mutually exclusive with it — when songModeRef is on, the
  *     wrap reads the next *position* in songArrangementRef (a list of
@@ -65,6 +68,26 @@ function stepGap(stepIndex: number, stepDuration: number, swing: number): number
   const pairDuration = stepDuration * 2;
   const isEvenStep = stepIndex % 2 === 0;
   return isEvenStep ? pairDuration * swingRatio : pairDuration * (1 - swingRatio);
+}
+
+/** Same "has content" definition as use-pattern-state.ts's patternHasContent (drives the pattern-selector's dot indicator) — any instrument with any active step. */
+function patternHasAnyContent(pattern: Pattern): boolean {
+  return pattern.instruments.some((instrument) => instrument.steps.some((velocity) => velocity > 0));
+}
+
+/**
+ * AUTO's next index, skipping empty patterns entirely — e.g. with only 1
+ * and 2 filled in, AUTO cycles 1→2→1→2… instead of marching into an empty
+ * 3 and continuing from there. Searches forward from `fromIndex`, wrapping
+ * around; if nothing anywhere has content (including `fromIndex` itself),
+ * stays put rather than advancing into silence.
+ */
+function findNextAutoPatternIndex(patterns: Pattern[], fromIndex: number): number {
+  for (let offset = 1; offset <= patterns.length; offset++) {
+    const candidate = (fromIndex + offset) % patterns.length;
+    if (patternHasAnyContent(patterns[candidate])) return candidate;
+  }
+  return fromIndex;
 }
 
 type UsePatternSchedulerOptions = {
@@ -144,7 +167,7 @@ export function usePatternScheduler({
           songPositionRef.current = nextPosition;
           nextIndex = arrangement[nextPosition];
         } else if (autoRef.current) {
-          nextIndex = (previousIndex + 1) % patterns.length;
+          nextIndex = findNextAutoPatternIndex(patterns, previousIndex);
         }
         if (nextIndex !== previousIndex) {
           activePatternRef.current = nextIndex;

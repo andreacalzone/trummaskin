@@ -140,6 +140,14 @@ export function useDrumAudioEngine() {
     (instrumentId: InstrumentId, velocity: number = 1) => {
       const context = contextRef.current;
       if (!context) return;
+      // Mobile browsers (notably Safari) never auto-resume a suspended
+      // AudioContext on an arbitrary click the way desktop Chrome does —
+      // it must be resumed from directly inside a user-gesture handler.
+      // Every pad tap is such a gesture, so resume unconditionally here;
+      // resume() on an already-running context is a cheap no-op.
+      if (context.state !== 'running') {
+        context.resume().catch(() => {});
+      }
       scheduleTrigger(instrumentId, context.currentTime, velocity);
     },
     [scheduleTrigger],
@@ -271,12 +279,26 @@ export function useDrumAudioEngine() {
     }
   }, []);
 
+  /**
+   * Explicitly resumes the AudioContext if it isn't already running.
+   * Needed anywhere playback can start *without* going through `trigger`
+   * (e.g. pressing Play) — same mobile-Safari requirement as above, must
+   * be called synchronously inside the user-gesture handler.
+   */
+  const resumeAudioContext = useCallback(() => {
+    const context = contextRef.current;
+    if (context && context.state !== 'running') {
+      context.resume().catch(() => {});
+    }
+  }, []);
+
   return {
     isLoaded,
     loadError,
     trigger,
     scheduleTrigger,
     getCurrentTime,
+    resumeAudioContext,
     setCustomSample,
     clearCustomSample,
     setCustomSampleTrim,

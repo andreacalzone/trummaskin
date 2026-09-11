@@ -52,7 +52,7 @@ function useAppState() {
   const { songMode, setSongMode, arrangement: songArrangement, addToArrangement, removeFromArrangement, moveArrangementItem } = useSongState();
 
   const engine = useDrumAudioEngine();
-  const { isLoaded, trigger, scheduleTrigger, getCurrentTime, getActiveSampleDuration, getWaveformPeaks } = engine;
+  const { isLoaded, trigger, scheduleTrigger, getCurrentTime, resumeAudioContext, getActiveSampleDuration, getWaveformPeaks } = engine;
   const { customSampleNames, customSampleTrims, selectCustomSample, recordCustomSample, restoreDefaultSample, setSampleTrim } = useCustomSamples(engine);
   const { drumFx, masterFx, setDrumFxParam, setMasterFxParam } = useFxState(engine);
 
@@ -170,13 +170,18 @@ function useAppState() {
   // as before Milestone 26. Keeping the grid's own selection in sync here
   // too means what's displayed never lags behind what's actually playing.
   const handlePlay = useCallback(() => {
+    // Must run synchronously inside this user-gesture handler — see
+    // resumeAudioContext's doc comment. Pressing Play is often the very
+    // first interaction with the app, so this can't rely on a pad tap
+    // having already resumed the context.
+    resumeAudioContext();
     const startIndex = songMode && songArrangement.length > 0 ? songArrangement[0] : selectedPatternIndex;
     if (startIndex !== selectedPatternIndex) {
       setSelectedPatternIndex(startIndex);
     }
     startScheduler(startIndex);
     play();
-  }, [startScheduler, play, selectedPatternIndex, setSelectedPatternIndex, songMode, songArrangement]);
+  }, [resumeAudioContext, startScheduler, play, selectedPatternIndex, setSelectedPatternIndex, songMode, songArrangement]);
 
   const handleToggleSongMode = useCallback(() => {
     setSongMode(!songMode);
