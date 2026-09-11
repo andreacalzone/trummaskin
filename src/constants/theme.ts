@@ -7,21 +7,31 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
+// The app has a single fixed identity — a physical dark drum-machine unit —
+// rather than following the OS light/dark setting like a typical app screen.
+// Both keys hold the same hardware palette so useTheme()/useColorScheme()
+// need no logic changes; only the palette itself changed.
+const hardware = {
+  text: '#ECEAE5',
+  background: '#101114',
+  backgroundElement: '#1C1E22',
+  backgroundSelected: '#2A2D33',
+  textSecondary: '#8B8F96',
+  // Step-pad inactive fill: close to the body color so an unlit pad
+  // recedes into the hardware, distinguished mainly by its bevel.
+  tile: '#1A1C20',
+  // Primary "lit" color — normal-velocity hits, Play-active, selection.
+  accent: '#FF6A3D',
+  // Hottest/most energetic feedback — accent-velocity hits.
+  accentHot: '#FFC94A',
+  // Reserved for playback position only, kept out of the pad-state palette
+  // so "is this step hit" and "is this the current step" never collide.
+  playhead: '#3FD6E8',
+} as const;
+
 export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-  },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-  },
+  light: hardware,
+  dark: hardware,
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
@@ -61,5 +71,4 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
