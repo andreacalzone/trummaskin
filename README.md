@@ -1,56 +1,71 @@
-# Welcome to your Expo app 👋
+# Groovebox
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A hardware-style 16-step drum sequencer for iOS and Android, built with React Native + Expo. Program beats on a tactile 4×4 pad grid, layer FX per drum, chain patterns into full songs, and record your own samples straight from the mic.
 
-## Get started
+<p align="center">
+  <img src="docs/screenshots/main-screen.png" width="260" alt="Main step-sequencer screen">
+  <img src="docs/screenshots/fx-page.png" width="260" alt="Per-drum and master FX page">
+  <img src="docs/screenshots/song-arrangement.png" width="260" alt="Song arrangement editor">
+</p>
 
-1. Install dependencies
+## Features
 
-   ```bash
-   npm install
-   ```
+- **4×4 step grid** — 16 steps per pattern, presented as tactile hardware pads rather than a flat DAW grid. Long-press a step to cycle its velocity/accent.
+- **8 pattern banks** — switch between 8 independent patterns per drum kit. **AUTO** chains through them automatically at the end of each loop, skipping any pattern that's still empty.
+- **Song Mode** — build an ordered arrangement out of your 8 patterns (repeats allowed) and play it straight through as one song.
+- **Per-drum FX** — Volume, Pitch (±1 octave, chromatic), Drive, EQ, Delay, and Reverb, editable per instrument.
+- **Master FX** — master Volume, Compressor, and Reverb across the whole kit.
+- **Custom samples** — **LOAD** a sample from a file, or **REC** one straight from the phone's microphone. Either way, the result is trimmable in the same waveform editor.
+- **Swing & BPM** — adjustable groove and tempo, changeable live without restarting playback.
+- **Copy pattern, reset (pattern or all)** — standard housekeeping, with hold-to-confirm on the destructive ones.
 
-2. Start the app
+## Tech stack
 
-   ```bash
-   npx expo start
-   ```
+- [Expo](https://expo.dev) (SDK 57) + React Native, TypeScript, Expo Router
+- [`react-native-audio-api`](https://github.com/software-mansion/react-native-audio-api) — a Web-Audio-API-shaped native audio engine (own AudioContext/AudioNode graph, not `expo-av`)
+- `expo-file-system` for sample import/export
 
-In the output, you'll find options to open the app in a
+## Getting started
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+**Prerequisites:** Node.js, and either Xcode (iOS) or Android Studio (Android) set up for React Native development — this project uses native modules, so it will not run inside Expo Go.
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Then run on a simulator/emulator or a connected device:
 
-### Other setup steps
+```bash
+npx expo run:ios
+# or
+npx expo run:android
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+### ⚠️ Important: the audio library is pinned to a nightly build, on purpose
 
-## Learn more
+`react-native-audio-api`'s latest **stable** release does not produce any audible output at all on the iOS 26 Simulator — it hits [a known, still-open upstream bug](https://github.com/software-mansion/react-native-audio-api/issues/671) (`HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload`). This project pins an exact nightly build (`1.0.0-nightly-a8925b5-20260909`, see `package.json`) that resolves it. **Don't casually bump this dependency** — verify sound actually works on-device first if you do.
 
-To learn more about developing your project with Expo, look at the following resources:
+That nightly also has its own small bug: its native `DelayNode` has `getInput()`/`getOutput()` reversed, which silently makes the DELAY effect do nothing at all. This repo carries a patch for it — see `scripts/patch-audio-api-delay.js`, which reapplies automatically via `postinstall` after every `npm install` (manual `node_modules` edits alone don't survive a fresh install, so this is the mechanism that makes DELAY work out of the box for anyone cloning the repo). The same pattern already existed here for [a separate web-only crash fix](scripts/patch-audio-api-web.js).
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+**Native patches only take effect after a native rebuild** (`npx expo run:ios` / `npx expo run:android`), not a JS-only reload — if you change the pinned version or edit either patch script, rebuild before testing.
 
-## Join the community
+### iOS Simulator microphone
 
-Join our community of developers creating universal apps.
+Recording (REC) needs a host microphone selected in **Simulator → I/O → Audio Input** — otherwise the recording will fail to start even with permissions granted.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Project structure
+
+```
+src/
+  app/            Expo Router screens (main sequencer, FX page)
+  audio/          Audio engine, FX chain, scheduler, recording
+  components/     UI components, organized by screen area
+  state/          App-wide state (patterns, playback, FX, song, custom samples)
+  storage/        AsyncStorage/file persistence
+  constants/      Drum/FX/theme definitions
+scripts/          postinstall patches for react-native-audio-api (see above)
+```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
